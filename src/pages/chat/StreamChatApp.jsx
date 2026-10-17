@@ -791,47 +791,23 @@ export default function StreamChatApp() {
 
   const handleSend = ({ text, file, image, replyingTo: replyTarget }) => {
     if (!activeId) return;
-    if (!text?.trim() && !file && !image) return;
-
-    // Frontend-only reply: fold a quoted line into the text itself,
-    // since there's no replyToId column — this is what MessageBubble
-    // detects via the "↳ ...\n" marker to render the quote box.
+    const attachment = file || image?.file;
+    if (!text?.trim() && !attachment) return;
+  
     let finalText = text?.trim() || "";
     if (replyTarget && finalText) {
       const quotedSnippet = (replyTarget.text || "Attachment").slice(0, 60);
       finalText = `↳ ${quotedSnippet}\n${finalText}`;
     }
-
-    if (finalText || file) {
-      dispatch(sendMessageThunk({ receiverId: activeId, text: finalText, file }))
-        .unwrap()
-        .then(() => {
-          dispatch(getConversation(activeId));
-          dispatch(getMyChats());
-          setPendingNewUser(null);
-        })
-        .catch((err) => console.log(err, "Failed to send message"));
-      return;
-    }
-
-    // Images stay local-only for now.
-    if (image) {
-      setLocalExtras((prev) => ({
-        ...prev,
-        [activeId]: [
-          ...(prev[activeId] || []),
-          {
-            id: `local-${Date.now()}`,
-            sender: "me",
-            text: "",
-            time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-            createdAt: new Date().toISOString(),
-            attachmentType: "image",
-            attachmentUrl: image.previewUrl,
-          },
-        ],
-      }));
-    }
+  
+    dispatch(sendMessageThunk({ receiverId: activeId, text: finalText, file: attachment }))
+      .unwrap()
+      .then(() => {
+        dispatch(getConversation(activeId));
+        dispatch(getMyChats());
+        setPendingNewUser(null);
+      })
+      .catch((err) => console.log(err, "Failed to send message"));
   };
 
   const handleReact = (messageId, emoji) => {
